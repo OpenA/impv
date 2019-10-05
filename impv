@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+
+import sys
+import os
+import errno
+import subprocess
+import fcntl
+import stat
+import string
+
+# this is the same method mpv uses to decide this
+def get_abs(filename):
+    parts = filename.split('://', 1)
+    if len(parts) < 2:
+        return os.path.abspath(filename)
+    # protocol prefix has no special characters => it's an URL
+    allowed_symbols = string.ascii_letters + string.digits +'_'
+    prefix = parts[0]
+    if all(map(lambda c: c in allowed_symbols, prefix)):
+        return filename
+    else:
+        return ''
+
+# escape: \ \n "
+def esc_nsl(filepath):
+    return '"'+ filepath.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') +'"'
+
+# constants
+_MPV_ = (os.getenv('MPV') or 'mpv')
+_FIFO = os.path.join(os.getenv('HOME'), '.config/mpv/.fifo')
+
+# variables
+args  = sys.argv[1:]
+opts  = [_MPV_]
+files = []
+
+just_add = False
+mpv_pid  = ''
+
+try:
+    mpv_pid = subprocess.check_output(['pidof',_MPV_]).decode('ascii').split(' ')[0].strip()
+except subprocess.CalledProcessError as e:
+    pass # no other mpv process running
+
+# parsing arguments
+for arg in args:
+    if arg[:2] == '--':
+        if arg == '--blank':
+            opts.extend(['--player-operation-mode=pseudo-gui', '--force-window'])
+        elif arg == '--add-playlist':
+            just_add = True
+        else:
+            opts.append(arg)
+    else: # make them absolute
+        files.append(get_abs(arg))
+
+fifo_fd = -1
+try:
+    fifo_fd = os.open(_FIFO, os.O_NONBLOCK | os.O_WRONLY)
+except OSError as e:
+    if e.errno == errno.ENXIO:
+        pass # pipe has no writer
+    elif e.errno == errno.ENOENT:
+        pass # doesn't exist
+    else:
+        raise e
+
+if fifo_fd >= 0 and just_add and mpv_pid:
+    # Unhandled race condition: what if mpv is terminating right now?
+    fcntl.fcntl(fifo_fd, fcntl.F_SETFL, 0) # set blocking mode
+    fifo = os.fdopen(fifo_fd, 'w')
+    for f in files:
+        fifo.write('raw loadfile '+ esc_nsl(f) +' append\n')
+else:
+    # Closing existing mpv instance if exist
+    if mpv_pid:
+        try:
+            subprocess.check_call(['kill', mpv_pid])
+        except subprocess.CalledProcessError as e:
+            pass
+    # Recreate pipe if it doesn't already exist.
+    # Also makes sure it's safe, and no other user can create a bogus pipe
+    # that breaks security.
+    try:
+        os.unlink(_FIFO)
+    except OSError as e:
+        pass
+    os.mkfifo(_FIFO, 0o600)
+    
+    opts.extend(['--input-file='+_FIFO, '--'])
+    opts.extend(files)
+
+    subprocess.check_call(opts)
