@@ -27,8 +27,7 @@ and running the impv script after that will start a new mpv instance.
 >
 >      echo "cycle fullscreen" > ~/.config/mpv/.fifo
 >
->***Note***: you can supply custom mpv path and options with the MPV environment
->
->      variable. The environment variable will be split on whitespace, and the
->      first item is used as path to mpv binary and the rest is passed as options
->      _if_ the script starts mpv.
+>***Note***:
+> you can supply custom mpv path and options with the MPV environment variable.
+> The environment variable will be split on whitespace, and the first item is used
+> as path to mpv binary and the rest is passed as options _if_ the script starts mpv.
