@@ -31,3 +31,8 @@ and running the impv script after that will start a new mpv instance.
 > you can supply custom mpv path and options with the MPV environment variable.
 > The environment variable will be split on whitespace, and the first item is used
 > as path to mpv binary and the rest is passed as options _if_ the script starts mpv.
+>
+>***Note***:
+> as well, you can add `impv-playlist.desktop` file to `/usr/local/share/applications`
+> (for all users) or `~/.local/share/applications` (for personal usage), and set it as
+> **Recommended Application** for add files and folders to playlist from context menu.
