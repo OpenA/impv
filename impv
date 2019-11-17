@@ -25,9 +25,18 @@ def get_abs(filename):
 def esc_nsl(filepath):
     return '"'+ filepath.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') +'"'
 
+# Check if directory exists, if not, create it
+def get_mpv_conf():
+    mpv_conf   = os.path.join(os.getenv('HOME'), '.config/mpv/')
+    check_conf = os.path.isdir(mpv_conf)
+
+    if not check_conf:
+        os.makedirs(mpv_conf)
+    return mpv_conf
+
 # constants
 _MPV_ = (os.getenv('MPV') or 'mpv')
-_FIFO = os.path.join(os.getenv('HOME'), '.config/mpv/.fifo')
+_FIFO = get_mpv_conf() +'.fifo'
 
 # variables
 args  = sys.argv[1:]
