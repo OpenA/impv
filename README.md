@@ -1,38 +1,39 @@
-### This script emulates macOS single-instance on Linux.
+### This is a minimal single-player implementation for \*nix using only the built-in MPV features.
 
 
-When starting playback with this script, it will substitute an first running
-instance of mpv. Other mpv instances are ignored.
-Script takes filenames and options as arguments, and implement two special options:
+>***Note*** Other MPV instances launched not through **impv** are completely ignored.
 
+
+You can use `impv` instead of the `mpv` from command line and .desktop shortcuts.
+It can takes any options and supported files / protocols same as original `mpv` program.
+
+
+#### `impv` features:
+
+
+Play's video with a single player instance.
+ - If window holded `ontop` or expanded to the fullscreen, player just update playback.
+ - If not - player restarts with new params, for pop up himself above other windows.
+
+
+Configured autofit params for smaller and larger video.
+
+
+Implements some special options:
 
 `--blank`
->      Just open blank pseudo-gui window.
->      It will not write output to stdout/stderr, because this
->      will typically just fill ~/.xsession-errors with garbage.
+>      Just opens a blank window for drag and drop from file manager.
 
 `--add-playlist`
->      If mpv is already running, this option passed files to mpv's
->      internal playlist. If a file does not exist or is otherwise
->      not playable, mpv will skip the playlist entry when attempting
->      to play it (from the GUI perspective, it's silently ignored).
+>      This option append files to mpv's internal playlist.
+>      If MPV is not running, it will start with selected files.
 
 
-If mpv isn't running yet, this script will start mpv and let it control the
-current terminal. mpv will terminate if there are no more files to play,
-and running the impv script after that will start a new mpv instance.
+As well, you can add `impv-playlist.desktop` file to `/usr/local/share/applications`
+ (for all users) or `~/.local/share/applications` (for personal usage), and set it as
+ **Recommended Application** for add files and folders to playlist from context menu.
 
 
->***Note*** that you can control the mpv instance by writing to the command fifo:
 >
->      echo "cycle fullscreen" > ~/.config/mpv/.fifo
+> **Script written in Python (> = 2.7) and implements an IPC-client for communicating with MPV via JSON API.**
 >
->***Note***:
-> you can supply custom mpv path and options with the MPV environment variable.
-> The environment variable will be split on whitespace, and the first item is used
-> as path to mpv binary and the rest is passed as options _if_ the script starts mpv.
->
->***Note***:
-> as well, you can add `impv-playlist.desktop` file to `/usr/local/share/applications`
-> (for all users) or `~/.local/share/applications` (for personal usage), and set it as
-> **Recommended Application** for add files and folders to playlist from context menu.
