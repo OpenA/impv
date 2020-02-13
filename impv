@@ -2,101 +2,58 @@
 
 import sys
 import os
-import errno
+import socket
 import subprocess
-import fcntl
-import stat
-import string
-
-# this is the same method mpv uses to decide this
-def get_abs(filename):
-    parts = filename.split('://', 1)
-    if len(parts) < 2:
-        return os.path.abspath(filename)
-    # protocol prefix has no special characters => it's an URL
-    allowed_symbols = string.ascii_letters + string.digits +'_'
-    prefix = parts[0]
-    if all(map(lambda c: c in allowed_symbols, prefix)):
-        return filename
-    else:
-        return ''
-
-# escape: \ \n "
-def esc_nsl(filepath):
-    return '"'+ filepath.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') +'"'
-
-# Check if directory exists, if not, create it
-def get_mpv_conf():
-    mpv_conf   = os.path.join(os.getenv('HOME'), '.config/mpv/')
-    check_conf = os.path.isdir(mpv_conf)
-
-    if not check_conf:
-        os.makedirs(mpv_conf)
-    return mpv_conf
 
 # constants
 _MPV_ = (os.getenv('MPV') or 'mpv')
-_FIFO = get_mpv_conf() +'.fifo'
+_PORT = '/tmp/impv-socket'
 
 # variables
-args  = sys.argv[1:]
+sock  = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 opts  = [_MPV_]
 files = []
 
-just_add = False
-mpv_pid  = ''
-
-try:
-    mpv_pid = subprocess.check_output(['pidof',_MPV_]).decode('ascii').split(' ')[0].strip()
-except subprocess.CalledProcessError as e:
-    pass # no other mpv process running
+# flags
+APPEND_TO_LIST = False
+SHOW_BLANK_UI  = False
 
 # parsing arguments
-for arg in args:
+for arg in (sys.argv[1:]):
     if arg[:2] == '--':
         if arg == '--blank':
-            opts.extend(['--player-operation-mode=pseudo-gui', '--force-window'])
+            SHOW_BLANK_UI = True
         elif arg == '--add-playlist':
-            just_add = True
+            APPEND_TO_LIST = True
         else:
             opts.append(arg)
     else: # make them absolute
-        files.append(get_abs(arg))
+        files.append(arg)
 
-fifo_fd = -1
 try:
-    fifo_fd = os.open(_FIFO, os.O_NONBLOCK | os.O_WRONLY)
-except OSError as e:
-    if e.errno == errno.ENXIO:
-        pass # pipe has no writer
-    elif e.errno == errno.ENOENT:
-        pass # doesn't exist
-    else:
-        raise e
+    sock.connect(_PORT)
+    files_string = '", "'.join(files)
 
-if fifo_fd >= 0 and just_add and mpv_pid:
-    # Unhandled race condition: what if mpv is terminating right now?
-    fcntl.fcntl(fifo_fd, fcntl.F_SETFL, 0) # set blocking mode
-    fifo = os.fdopen(fifo_fd, 'w')
-    for f in files:
-        fifo.write('raw loadfile '+ esc_nsl(f) +' append\n')
-else:
-    # Closing existing mpv instance if exist
-    if mpv_pid:
-        try:
-            subprocess.check_call(['kill', mpv_pid])
-        except subprocess.CalledProcessError as e:
-            pass
-    # Recreate pipe if it doesn't already exist.
-    # Also makes sure it's safe, and no other user can create a bogus pipe
-    # that breaks security.
-    try:
-        os.unlink(_FIFO)
-    except OSError as e:
-        pass
-    os.mkfifo(_FIFO, 0o600)
-    
-    opts.extend(['--input-file='+_FIFO, '--'])
+    #IS_MPV_RUNNING = (
+    #    # check if ipc server active
+    #    subprocess.check_output('echo \'{ "command": ["get_property", "volume"] }\' | socat - '+_PORT, shell=True) != ''
+    #)
+
+    if APPEND_TO_LIST:
+        files_string += '", "append'
+
+    sock.sendall('{ "command": ["loadfile", "'+files_string+'"] }\n')
+    sock.sendall('{ "command": ["set_property", "pause", false] }\n')
+
+except socket.error:
+
+    if SHOW_BLANK_UI:
+        opts.extend(['--player-operation-mode=pseudo-gui', '--force-window'])
+
+    opts.extend(['--input-ipc-server='+_PORT, '--autofit-smaller=640x480', '--autofit-larger=100%x100%'])
     opts.extend(files)
 
     subprocess.check_call(opts)
+
+finally:
+    sock.close()
