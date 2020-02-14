@@ -46,7 +46,13 @@ try:
     files_string = '", "'.join(files)
 
     if APPEND_TO_LIST:
-        sock.sendall('{ "command": ["loadfile", "'+files_string+'", "append"] }\n')
+        sock.sendall('{ "command": ["get_property", "playback-time"] }\n')
+        action = 'append'
+
+        if json.loads(sock.recv(1024))['error'] != 'success':
+            action = 'replace'
+
+        sock.sendall('{ "command": ["loadfile", "'+files_string+'", "'+action+'"] }\n')
     else:
         sock.sendall('{ "command": ["get_property", "fullscreen"] }\n')
         ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
