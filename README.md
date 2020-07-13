@@ -24,7 +24,7 @@ Implements some special options:
 `--blank`
 >      Just opens a blank window for drag and drop from file manager.
 
-`--add-playlist`
+`--add-to-playlist`
 >      This option append files to mpv's internal playlist.
 >      If MPV is not running, it will start with selected files.
 
@@ -35,5 +35,5 @@ As well, you can add `impv-playlist.desktop` file to `/usr/local/share/applicati
 
 
 >
-> **Script written in Python (> = 2.7) and implements an IPC-client for communicating with MPV via JSON API.**
+> **Script written in Python (> = 3.4) and implements an IPC-client for communicating with MPV via JSON API.**
 >

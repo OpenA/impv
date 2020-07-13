@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -25,7 +25,8 @@ for arg in (sys.argv[1:]):
     if arg[:2] == '--':
         if arg == '--blank':
             SHOW_BLANK_UI = True
-        elif arg == '--add-playlist':
+        elif arg == '--add-to-playlist':
+            SHOW_BLANK_UI  = True
             APPEND_TO_LIST = True
         else:
             opts.append(arg)
@@ -46,26 +47,26 @@ try:
     files_string = '", "'.join(files)
 
     if APPEND_TO_LIST:
-        sock.sendall('{ "command": ["get_property", "playback-time"] }\n')
+        sock.sendall(b'{ "command": ["get_property", "playback-time"] }\n')
         action = 'append'
 
         if json.loads(sock.recv(1024))['error'] != 'success':
             action = 'replace'
 
-        sock.sendall('{ "command": ["loadfile", "'+files_string+'", "'+action+'"] }\n')
+        sock.sendall(b'{ "command": ["loadfile", "'+files_string+'", "'+action+'"] }\n')
     else:
-        sock.sendall('{ "command": ["get_property", "fullscreen"] }\n')
+        sock.sendall(b'{ "command": ["get_property", "fullscreen"] }\n')
         ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
 
         if not ALWAYS_ON_TOP:
-            sock.sendall('{ "command": ["get_property", "ontop"] }\n')
+            sock.sendall(b'{ "command": ["get_property", "ontop"] }\n')
             ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
 
         if ALWAYS_ON_TOP:
-            sock.sendall('{ "command": ["loadfile", "'+files_string+'", "replace"] }\n')
-            sock.sendall('{ "command": ["set_property", "pause", false] }\n')
+            sock.sendall(b'{ "command": ["loadfile", "'+files_string+'", "replace"] }\n')
+            sock.sendall(b'{ "command": ["set_property", "pause", false] }\n')
         else:
-            sock.sendall('{ "command": ["quit"] }\n')
+            sock.sendall(b'{ "command": ["quit"] }\n')
             openMPV()
 
 except socket.error as e:
