@@ -53,7 +53,7 @@ try:
         if json.loads(sock.recv(1024))['error'] != 'success':
             action = 'replace'
 
-        sock.sendall(b'{ "command": ["loadfile", "'+files_string+'", "'+action+'"] }\n')
+        sock.sendall(bytearray('{ "command": ["loadfile", "'+files_string+'", "'+action+'"] }\n', 'utf-8'))
     else:
         sock.sendall(b'{ "command": ["get_property", "fullscreen"] }\n')
         ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
@@ -63,7 +63,7 @@ try:
             ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
 
         if ALWAYS_ON_TOP:
-            sock.sendall(b'{ "command": ["loadfile", "'+files_string+'", "replace"] }\n')
+            sock.sendall(bytearray('{ "command": ["loadfile", "'+files_string+'", "replace"] }\n', 'utf-8'))
             sock.sendall(b'{ "command": ["set_property", "pause", false] }\n')
         else:
             sock.sendall(b'{ "command": ["quit"] }\n')
