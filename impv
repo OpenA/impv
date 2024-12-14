@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 
-import sys
-import os
-import time
-import json
-import socket
-import subprocess
+import os, sys, time, json, socket, subprocess
 
-# constants
-_MPV_ = (os.getenv('MPV') or 'mpv')
-_PORT = '/tmp/impv-socket'
+# unix socket
+SOCK = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+IPC  = '/tmp/impv-socket'
 
-# variables
-sock  = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-opts  = [_MPV_]
-files = []
+# arguments
+MPV   = [os.getenv('MPV') or 'mpv']
+FILES = []
 
 # flags
 APPEND_TO_LIST = False
@@ -29,49 +23,67 @@ for arg in (sys.argv[1:]):
             SHOW_BLANK_UI  = True
             APPEND_TO_LIST = True
         else:
-            opts.append(arg)
+            MPV.append(arg)
     else: # make them absolute
-        files.append(arg)
+        FILES.append(arg)
 
-def openMPV():
+def start_mpv_process(opts: list[str], files: list[str]):
     if SHOW_BLANK_UI:
         opts.extend(['--player-operation-mode=pseudo-gui', '--force-window'])
 
-    opts.extend(['--input-ipc-server='+_PORT, '--autofit-smaller=640x480', '--autofit-larger=100%x100%'])
+    opts.extend([f'--input-ipc-server={IPC}', '--autofit-smaller=640x480', '--autofit-larger=100%x100%'])
     opts.extend(files)
 
     subprocess.check_call(opts)
 
+def reset_mpv_playlist(sock: socket.socket, jfiles: str):
+    # check if mpv always on top
+    "-?-?-?" ; sock.sendall(b'{"command":["get_property","ontop"]}\n')
+    is_ontop = json.loads(sock.recv(1024))['data']
+    cmd_play = '{"command":["loadfile","%s","replace"]}\n'% jfiles
+    # restart with new file
+    "-!" ; sock.sendall(cmd_play.encode())
+    resp = json.loads(sock.recv(1024))
+    # check if opened correct
+    if resp['error'] != 'success':
+        raise Exception(resp['error'])
+    # place mpv on top
+    "--"; sock.sendall(b'{"command":["set_property","ontop",true]}\n')
+    _   = sock.recv(1024) # clear buffer
+    "--"; sock.sendall(b'{"command":["set_property","pause",false]}\n')
+    _   = sock.recv(1024)
+    # restore always_on_top flag
+    if not is_ontop:
+        time.sleep(.1)
+        "--"; sock.sendall(b'{"command":["set_property","ontop",false]}\n')
+        _   = sock.recv(1024)
+
+def add_to_mpv_playlist(sock: socket.socket, jfiles: str):
+    # check if something played
+    "-?" ; sock.sendall(b'{"command":["get_property","playback-time"]}\n')
+    resp = json.loads(sock.recv(1024))
+    # if playlist has tracks append files or create new playlist
+    if resp['error'] == 'success':
+        cmd = '{"command":["loadfile","%s","append"]}\n'% jfiles
+    else:
+        cmd = '{"command":["loadfile","%s","replace"]}\n'% jfiles
+    # send playlist
+    "-!"; sock.sendall(cmd.encode())
+    _   = sock.recv(1024) # clear buffer
+
 try:
-    sock.connect(_PORT)
-    files_string = '", "'.join(files)
+    SOCK.connect(IPC)
+    files_str = '","'.join(FILES)
 
     if APPEND_TO_LIST:
-        sock.sendall(b'{ "command": ["get_property", "playback-time"] }\n')
-        action = 'append'
-
-        if json.loads(sock.recv(1024))['error'] != 'success':
-            action = 'replace'
-
-        sock.sendall(bytearray('{ "command": ["loadfile", "'+files_string+'", "'+action+'"] }\n', 'utf-8'))
+        add_to_mpv_playlist(SOCK, files_str)
     else:
-        sock.sendall(b'{ "command": ["get_property", "fullscreen"] }\n')
-        ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
-
-        if not ALWAYS_ON_TOP:
-            sock.sendall(b'{ "command": ["get_property", "ontop"] }\n')
-            ALWAYS_ON_TOP = json.loads(sock.recv(1024))['data']
-
-        if ALWAYS_ON_TOP:
-            sock.sendall(bytearray('{ "command": ["loadfile", "'+files_string+'", "replace"] }\n', 'utf-8'))
-            sock.sendall(b'{ "command": ["set_property", "pause", false] }\n')
-        else:
-            sock.sendall(b'{ "command": ["quit"] }\n')
-            openMPV()
+        reset_mpv_playlist(SOCK, files_str)
 
 except socket.error as e:
-    openMPV()
+    start_mpv_process(MPV, FILES)
+    pass
 finally:
-    sock.shutdown(socket.SHUT_WR)
+    SOCK.shutdown(socket.SHUT_WR)
     time.sleep(1)
-    sock.close()
+    SOCK.close()
