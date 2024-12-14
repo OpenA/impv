@@ -34,7 +34,7 @@ def start_mpv_process(opts: list[str], files: list[str]):
     opts.extend([f'--input-ipc-server={IPC}', '--autofit-smaller=640x480', '--autofit-larger=100%x100%'])
     opts.extend(files)
 
-    subprocess.check_call(opts)
+    subprocess.run(opts)
 
 def reset_mpv_playlist(sock: socket.socket, jfiles: str):
     # check if mpv always on top
