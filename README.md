@@ -1,9 +1,5 @@
 ### This is a minimal single-player implementation for \*nix using only the built-in MPV features.
 
-
->***Note*** Other MPV instances launched not through **impv** are completely ignored.
-
-
 You can use `impv` instead of the `mpv` from command line and .desktop shortcuts.
 It can takes any options and supported files / protocols same as original `mpv` program.
 
@@ -12,9 +8,7 @@ It can takes any options and supported files / protocols same as original `mpv` 
 
 
 Play's video with a single player instance.
- - If window holded `ontop` or expanded to the fullscreen, player just update playback.
- - If not - player restarts with new params, for pop up himself above other windows.
-
+>***Note*** Other MPV instances launched not through **impv** are completely ignored.
 
 Configured autofit params for smaller and larger video.
 
@@ -35,5 +29,5 @@ As well, you can add `impv-playlist.desktop` file to `/usr/local/share/applicati
 
 
 >
-> **Script written in Python (> = 3.4) and implements an IPC-client for communicating with MPV via JSON API.**
+> **Script written in Python (> = 3.4) and implements an UNIX-Socket for communicating with MPV via JSON API.**
 >
