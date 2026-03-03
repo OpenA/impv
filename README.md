@@ -1,7 +1,7 @@
 ### This is a minimal single-player implementation for \*nix using only the built-in MPV features.
 
 You can use `impv` instead of the `mpv` from command line and .desktop shortcuts.
-It can takes any options and supported files / protocols same as original `mpv` program.
+Script can takes any options and supported files / protocols same as original `mpv` program.
 
 
 #### `impv` features:
@@ -29,5 +29,5 @@ As well, you can add `impv-playlist.desktop` file to `/usr/local/share/applicati
 
 
 >
-> **Script written in Python (> = 3.4) and implements an UNIX-Socket for communicating with MPV via JSON API.**
+> **Script written in Bash and uses `socat` linux util for communicating with MPV instance via unix-socket.**
 >

@@ -14,26 +14,28 @@ append_to_list=
 # parsing arguments
 for i in "$@"; do
 	case $i in
-	--help | -h)
+	--script-help)
 		echo ""
 		echo "Usage: impv [options] [FILE(s)]"
 		echo ""
+		echo "--script-help		# show this help"
+		echo "--script-version	# print script version"
+		echo "--blank			# open player in pseudo-gui"
+		echo "--add-to-playlist	# add files to current list"
+		echo ""
+		echo "Manpage: https://mpv.io/manual/stable"
 		exit
 		;;
-	--version | -v)
-		  echo "1.0"
-		  exit
+	--script-version)
+		echo "1.0"
+		exit
 		;;
 	--add-to-playlist)
 		append_to_list=1
 		;;
-	--blank)
-		mpv_args+=('--player-operation-mode=pseudo-gui' '--autofit-smaller=640x480' '--autofit-larger=100%x100%')
-		;;
-	--* | -*)
-		mpv_args+=("$i")
-		;;
-	*)
+	--blank ) mpv_args+=('--player-operation-mode=pseudo-gui' '--autofit-smaller=640x480' '--autofit-larger=100%x100%') ;;
+	--* | -*) mpv_args+=("$i") ;;
+	       *)
 		if [ -z "$is_ipc_running" ];
 			then mpv_files+=("$i")
 			else mpv_files+=("\"$i\",")
@@ -72,8 +74,8 @@ addto_mpv_playlist() {
 	local p=$(echo '{"command":["get_property","playback-time"]}' | socat - "$IPC")
 	# if playlist has tracks append files or create new playlist
 	if [[ "$p" =~ '"error"'\s*\:\s*'"success"' ]];
-		then mpv_files+=('"append"'); echo "append"
-		else mpv_files+=('"replace"'); echo "replace"
+		then mpv_files+=('"append"')
+		else mpv_files+=('"replace"')
 	fi
 	# send playlist
 	local e=$(echo '{"command":["loadfile",'"${mpv_files[@]}"']}' | socat - "$IPC")
