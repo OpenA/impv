@@ -33,7 +33,7 @@ for i in "$@"; do
 	--add-to-playlist)
 		append_to_list=1
 		;;
-	--blank ) mpv_args+=('--player-operation-mode=pseudo-gui' '--autofit-smaller=640x480' '--autofit-larger=100%x100%') ;;
+	--blank ) mpv_args+=('--player-operation-mode=pseudo-gui' '--force-window' '--autofit-smaller=640x480' '--autofit-larger=100%x100%') ;;
 	--* | -*) mpv_args+=("$i") ;;
 	       *)
 		if [ -z "$is_ipc_running" ];
