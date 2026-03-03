@@ -1,89 +1,91 @@
-#!/usr/bin/env python3
-
-import os, sys, time, json, socket, subprocess
+#!/usr/bin/bash
 
 # unix socket
-SOCK = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-IPC  = '/tmp/impv-socket'
+IPC='/tmp/impv-socket'
 
-# arguments
-MPV   = [os.getenv('MPV') or 'mpv']
-FILES = []
+# arguments & files
+declare -a mpv_args
+declare -a mpv_files
 
 # flags
-APPEND_TO_LIST = False
-SHOW_BLANK_UI  = False
+is_ipc_running=$(if [ -e "$IPC" ]; then lsof "$IPC"; fi)
+append_to_list=
 
 # parsing arguments
-for arg in (sys.argv[1:]):
-    if arg[:2] == '--':
-        if arg == '--blank':
-            SHOW_BLANK_UI = True
-        elif arg == '--add-to-playlist':
-            SHOW_BLANK_UI  = True
-            APPEND_TO_LIST = True
-        else:
-            MPV.append(arg)
-    else: # make them absolute
-        FILES.append(arg)
+for i in "$@"; do
+	case $i in
+	--help | -h)
+		echo ""
+		echo "Usage: impv [options] [FILE(s)]"
+		echo ""
+		exit
+		;;
+	--version | -v)
+		  echo "1.0"
+		  exit
+		;;
+	--add-to-playlist)
+		append_to_list=1
+		;;
+	--blank)
+		mpv_args+=('--player-operation-mode=pseudo-gui' '--autofit-smaller=640x480' '--autofit-larger=100%x100%')
+		;;
+	--* | -*)
+		mpv_args+=("$i")
+		;;
+	*)
+		if [ -z "$is_ipc_running" ];
+			then mpv_files+=("$i")
+			else mpv_files+=("\"$i\",")
+		fi
+		;;
+	esac
+done
 
-def start_mpv_process(opts: list[str], files: list[str]):
-    if SHOW_BLANK_UI:
-        opts.extend(['--player-operation-mode=pseudo-gui', '--force-window'])
+start_mpv_process() {
+	mpv --input-ipc-server="$IPC" "${mpv_args[@]}" "${mpv_files[@]}"
+	rm -rf "$IPC"
+}
 
-    opts.extend([f'--input-ipc-server={IPC}', '--autofit-smaller=640x480', '--autofit-larger=100%x100%'])
-    opts.extend(files)
+reset_mpv_playlist() {
+	# request property ontop
+	local t=$(echo '{"command":["get_property","ontop"]}' | socat - "$IPC")
+	# restart with new file
+	local e=$(echo '{"command":["loadfile",'"${mpv_files[@]}"'"replace"]}' | socat - "$IPC")
+	# check if opened correct
+	if [[ "$e" =~ '"error"'\s*\:\s*'"success"' ]]; then
+		# check if mpv always on top
+		if [[ "$t" =~ '"data"'\s*\:\s*false ]]; then
+			# place mpv on top
+			t=$(echo '{"command":["set_property","ontop",true]}' | socat - "$IPC" && sleep 0.25)
+			# restore always_on_top flag
+			t=$(echo '{"command":["set_property","ontop",false]}' | socat - "$IPC")
+		fi
+		e=$(echo '{"command":["set_property","pause",false]}' | socat - "$IPC")
+	else
+		echo "$e"
+	fi
+}
 
-    subprocess.run(opts)
+addto_mpv_playlist() {
+	# check if something played
+	local p=$(echo '{"command":["get_property","playback-time"]}' | socat - "$IPC")
+	# if playlist has tracks append files or create new playlist
+	if [[ "$p" =~ '"error"'\s*\:\s*'"success"' ]];
+		then mpv_files+=('"append"'); echo "append"
+		else mpv_files+=('"replace"'); echo "replace"
+	fi
+	# send playlist
+	local e=$(echo '{"command":["loadfile",'"${mpv_files[@]}"']}' | socat - "$IPC")
+	# check errors
+	if [[ ! "$e" =~ '"error"'\s*\:\s*'"success"' ]];
+		then echo "$e"
+	fi
+}
 
-def reset_mpv_playlist(sock: socket.socket, jfiles: str):
-    # check if mpv always on top
-    "-?-?-?" ; sock.sendall(b'{"command":["get_property","ontop"]}\n')
-    is_ontop = json.loads(sock.recv(1024))['data']
-    cmd_play = '{"command":["loadfile","%s","replace"]}\n'% jfiles
-    # restart with new file
-    "-!" ; sock.sendall(cmd_play.encode())
-    resp = json.loads(sock.recv(1024))
-    # check if opened correct
-    if resp['error'] != 'success':
-        raise Exception(resp['error'])
-    # place mpv on top
-    "--"; sock.sendall(b'{"command":["set_property","ontop",true]}\n')
-    _   = sock.recv(1024) # clear buffer
-    "--"; sock.sendall(b'{"command":["set_property","pause",false]}\n')
-    _   = sock.recv(1024)
-    # restore always_on_top flag
-    if not is_ontop:
-        time.sleep(.1)
-        "--"; sock.sendall(b'{"command":["set_property","ontop",false]}\n')
-        _   = sock.recv(1024)
-
-def add_to_mpv_playlist(sock: socket.socket, jfiles: str):
-    # check if something played
-    "-?" ; sock.sendall(b'{"command":["get_property","playback-time"]}\n')
-    resp = json.loads(sock.recv(1024))
-    # if playlist has tracks append files or create new playlist
-    if resp['error'] == 'success':
-        cmd = '{"command":["loadfile","%s","append"]}\n'% jfiles
-    else:
-        cmd = '{"command":["loadfile","%s","replace"]}\n'% jfiles
-    # send playlist
-    "-!"; sock.sendall(cmd.encode())
-    _   = sock.recv(1024) # clear buffer
-
-try:
-    SOCK.connect(IPC)
-    files_str = '","'.join(FILES)
-
-    if APPEND_TO_LIST:
-        add_to_mpv_playlist(SOCK, files_str)
-    else:
-        reset_mpv_playlist(SOCK, files_str)
-
-except socket.error as e:
-    start_mpv_process(MPV, FILES)
-    pass
-finally:
-    SOCK.shutdown(socket.SHUT_WR)
-    time.sleep(1)
-    SOCK.close()
+if   [   -z "$is_ipc_running" ];
+	then start_mpv_process
+elif [ ! -z "$append_to_list" ];
+	then addto_mpv_playlist
+	else reset_mpv_playlist
+fi
