@@ -14,28 +14,32 @@ append_to_list=
 # parsing arguments
 for i in "$@"; do
 	case $i in
-	--script-help)
+	--help | -h | --h=*)
 		echo ""
-		echo "Usage: impv [options] [FILE(s)]"
+		echo "$(mpv "$i" | sed -e 's/mpv /impv /')"
 		echo ""
-		echo "--script-help		# show this help"
-		echo "--script-version	# print script version"
-		echo "--blank			# open player in pseudo-gui"
-		echo "--add-to-playlist	# add files to current list"
+		echo "Extra options:"
+		echo " --blank           opens a blank player window"
+		echo " --add-to-playlist add files to current list"
 		echo ""
 		echo "Manpage: https://mpv.io/manual/stable"
 		exit
 		;;
-	--script-version)
-		echo "1.0"
+	--version)
+		echo -e "\033[1m"
+		echo "Single-Instance script version: 2.0"
+		echo -e "\033[0m"
+		;;&
+	--list-options | -v | --version)
+		mpv "$i"
 		exit
 		;;
 	--add-to-playlist)
 		append_to_list=1
 		;;
-	--blank ) mpv_args+=('--player-operation-mode=pseudo-gui' '--force-window' '--autofit-smaller=640x480' '--autofit-larger=100%x100%') ;;
-	--* | -*) mpv_args+=("$i") ;;
-	       *)
+	--blank) mpv_args+=('--player-operation-mode=pseudo-gui' '--force-window' '--autofit-smaller=640x480' '--autofit-larger=100%x100%') ;;
+	--*   )  mpv_args+=("$i") ;;
+	  *  )
 		if [ -z "$is_ipc_running" ];
 			then mpv_files+=("$i")
 			else mpv_files+=("\"$i\",")
@@ -85,9 +89,9 @@ addto_mpv_playlist() {
 	fi
 }
 
-if   [   -z "$is_ipc_running" ];
+if   [ -z "$is_ipc_running" ];
 	then start_mpv_process
-elif [ ! -z "$append_to_list" ];
-	then addto_mpv_playlist
-	else reset_mpv_playlist
+elif [ -z "$append_to_list" ];
+	then reset_mpv_playlist
+	else addto_mpv_playlist
 fi
