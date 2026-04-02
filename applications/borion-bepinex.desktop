@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Borion BepInEx
+Comment=Enables unity plugins module
+Exec=borion -QBK %F
+Type=Application
+Icon=winetricks
+Categories=Wine;
+MimeType=application/x-ms-dos-executable;
+NoDisplay=true
+StartupNotify=true
+Terminal=false

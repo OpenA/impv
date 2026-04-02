@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Borion Explorer
+Comment=Standart windows file manager
+Exec=borion -Q explorer %U
+Type=Application
+Icon=wine-folder
+StartupWMClass=proton-explorer
+MimeType=inode/directory;
+Terminal=false
+StartupNotify=true
+Categories=Wine;

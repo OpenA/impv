@@ -1,0 +1,20 @@
+[Desktop Entry]
+Name=Borion Desktop
+Comment=Run Windows apps in virtual desktop
+Exec=borion -QD start %F
+Type=Application
+Icon=wine
+StartupWMClass=BVD1
+Terminal=false
+StartupNotify=true
+Categories=Wine;
+MimeType=application/x-ms-dos-executable;
+Actions=task-manager;reg-edit;
+
+[Desktop Action task-manager]
+Name=Task Manager
+Exec=borion -QD taskmgr
+
+[Desktop Action reg-edit]
+Name=RegEdit
+Exec=borion -QD regedit
