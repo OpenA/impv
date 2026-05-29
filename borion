@@ -22,17 +22,17 @@ if [ ! -v PROTON_BASE_DIR ]; then
 	PROTON_VERSION="$(cut -d ' ' -f2 "$PROTON_BASE_DIR/version")"
 	EXTRA_LD_PATH="$PROTON_LIBS_DIR/x86_64-linux-gnu:$PROTON_BASE_DIR/protonfixes/files/lib/x86_64-linux-gnu"
 
-	echo "# These are the Proton files search paths (change it if needed)
-WINE64_BIN='$WINE64_BIN'
-WINEWOW_BIN='$WINEWOW_BIN'
-PROTON_VERSION='$PROTON_VERSION'
-PROTON_BASE_DIR='$PROTON_BASE_DIR'
-PROTON_LIBS_DIR='$PROTON_LIBS_DIR'
-MSCORE_FONTS_DIR='$MSCORE_FONTS_DIR'
-EXTRA_LD_PATH='$EXTRA_LD_PATH'
+	echo '# These are the Proton files search paths (change it if needed)
+PROTON_VERSION="'$PROTON_VERSION'"
+PROTON_BASE_DIR="'$PROTON_BASE_DIR'"
+PROTON_LIBS_DIR="$PROTON_BASE_DIR/files/lib"
+MSCORE_FONTS_DIR="$PROTON_BASE_DIR/files/share/fonts"
+WINE64_BIN="$PROTON_BASE_DIR/files/bin/wine64"
+WINEWOW_BIN="$PROTON_BASE_DIR/files/bin-wow64/wine"
+EXTRA_LD_PATH="$PROTON_LIBS_DIR/x86_64-linux-gnu:$PROTON_BASE_DIR/protonfixes/files/lib/x86_64-linux-gnu"
 #PROTON_SAREK_PROFILE='default'
 # you can add here 'export' variables for wine and libs
-" > "$m_glob_var"
+' > "$m_glob_var"
 fi
 
 m_dlls=''; m_wine_run=("$WINE64_BIN")
@@ -208,10 +208,11 @@ function copy_proton_dlls {
 	done
 	lcp_extra_libs c+dll "$PROTON_LIBS_DIR/wine/vkd3d-proton/$w_arch" $vk_dir
 	lcp_extra_libs c+dll "$PROTON_LIBS_DIR/wine/dxvk/$w_arch" $vk_dir
-	lcp_extra_libs c+dll "$PROTON_LIBS_DIR/wine/icu/$w_arch" "$1"
-	lcp_extra_libs c+dll "$PROTON_LIBS_DIR/vkd3d/$w_arch" "$1"
+	lcp_extra_libs c+dll "$PROTON_LIBS_DIR/wine/icu/$w_arch" $vk_dir
+	lcp_extra_libs c+dll "$PROTON_LIBS_DIR/vkd3d/$w_arch" $vk_dir
 	for n in "$vk_dir"/*; do
-		ln -s "$n"
+		local d="${n##*/}"
+		ln -s "vkd3d/$d" "$1/$d"
 	done
 }
 
@@ -238,7 +239,9 @@ function create_wine_pfx {
 
 # create native dll override
 function update_extra_reg {
-	if [ ! -f "$dbl_reg" ]; then
+	local usr_reg="$m_data_dir/user_extra.reg"
+
+	if [ ! -f "$usr_reg" ]; then
 		echo 'Windows Registry Editor Version 5.00
 
 [HKEY_CURRENT_USER\Software\Wine\DllOverrides]
